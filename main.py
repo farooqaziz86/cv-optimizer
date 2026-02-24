@@ -7,7 +7,6 @@ import tempfile
 
 app = Flask(__name__)
 
-# Your CV Google Doc ID
 CV_DOC_ID = "1CKzwOMJLt85-t8k8b2hTKQUZ6Ak_U4Q2_kKF7aSuH7M"
 
 def get_cv_content():
@@ -127,21 +126,21 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <h1>📄 CV Optimizer</h1>
-    <p class="subtitle">Paste a job description → Get an ATS-optimized PDF</p>
+    <p class="subtitle">Paste a job description and get an ATS-optimized PDF</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
     <form method="POST" id="cvForm">
         <label for="job_url">Job URL (optional)</label>
         <textarea name="job_url" id="job_url" rows="1" placeholder="https://linkedin.com/jobs/..."></textarea>
         <label for="job_description">Job Description *</label>
         <textarea name="job_description" id="job_description" rows="15" placeholder="Paste the full job description here..." required></textarea>
-        <button type="submit" id="submitBtn">🚀 Optimize My CV & Download PDF</button>
-        <div class="loading" id="loading">⏳ Optimizing... 20-30 seconds...</div>
+        <button type="submit" id="submitBtn">🚀 Optimize My CV and Download PDF</button>
+        <div class="loading" id="loading">Optimizing... 20-30 seconds...</div>
     </form>
-    <div class="tips"><strong>💡 Tips:</strong> Copy the ENTIRE job description. Your CV structure stays the same - only wording gets optimized.</div>
+    <div class="tips"><strong>Tips:</strong> Copy the ENTIRE job description. Your CV structure stays the same - only wording gets optimized.</div>
     <script>
         document.getElementById('cvForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').textContent = '⏳ Processing...';
+            document.getElementById('submitBtn').textContent = 'Processing...';
             document.getElementById('loading').style.display = 'block';
         });
     </script>
@@ -166,18 +165,3 @@ def index():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-```
-
-Click **"Commit changes"**
-
----
-
-## File 2: `requirements.txt`
-
-Click **"Add file"** → **"Create new file"** → Name it `requirements.txt` → Paste this:
-```
-flask==3.0.0
-anthropic==0.39.0
-requests==2.31.0
-weasyprint==62.0
-gunicorn==21.2.0
