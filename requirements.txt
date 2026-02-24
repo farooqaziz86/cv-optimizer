@@ -1,5 +1,7 @@
 flask==3.0.0
 anthropic==0.45.0
 requests==2.31.0
-weasyprint==62.0
+weasyprint==60.1
 gunicorn==21.2.0
+cssselect2==0.7.0
+tinycss2==1.2.1
