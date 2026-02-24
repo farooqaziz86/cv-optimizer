@@ -2,7 +2,10 @@ import os
 import requests
 import anthropic
 from flask import Flask, render_template_string, request, send_file
-from weasyprint import HTML
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.units import cm
 import tempfile
 
 app = Flask(__name__)
@@ -53,52 +56,88 @@ OUTPUT THE OPTIMIZED CV (same structure, optimized wording):"""
     return message.content[0].text
 
 def create_pdf(cv_text):
-    lines = cv_text.split('\n')
-    html_content = []
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
     
-    for line in lines:
-        original_line = line
+    doc = SimpleDocTemplate(
+        temp_file.name,
+        pagesize=A4,
+        rightMargin=1.5*cm,
+        leftMargin=1.5*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1.5*cm
+    )
+    
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    styles.add(ParagraphStyle(
+        name='CVName',
+        fontSize=16,
+        fontName='Helvetica-Bold',
+        spaceAfter=6
+    ))
+    styles.add(ParagraphStyle(
+        name='CVContact',
+        fontSize=9,
+        fontName='Helvetica',
+        spaceAfter=12,
+        textColor='#333333'
+    ))
+    styles.add(ParagraphStyle(
+        name='CVSection',
+        fontSize=11,
+        fontName='Helvetica-Bold',
+        spaceBefore=14,
+        spaceAfter=8,
+        borderPadding=(0, 0, 3, 0)
+    ))
+    styles.add(ParagraphStyle(
+        name='CVJob',
+        fontSize=10,
+        fontName='Helvetica-Bold',
+        spaceBefore=8,
+        spaceAfter=2
+    ))
+    styles.add(ParagraphStyle(
+        name='CVText',
+        fontSize=10,
+        fontName='Helvetica',
+        spaceAfter=3,
+        leading=12
+    ))
+    styles.add(ParagraphStyle(
+        name='CVBullet',
+        fontSize=10,
+        fontName='Helvetica',
+        leftIndent=12,
+        spaceAfter=3,
+        leading=12,
+        bulletIndent=0
+    ))
+    
+    story = []
+    lines = cv_text.split('\n')
+    
+    for i, line in enumerate(lines):
         line = line.strip()
         
         if not line:
-            html_content.append('<div class="spacer"></div>')
+            story.append(Spacer(1, 6))
+        elif line.startswith('Farooq'):
+            story.append(Paragraph(line, styles['CVName']))
+        elif '|' in line and i < 3:
+            story.append(Paragraph(line, styles['CVContact']))
         elif line == line.upper() and len(line) > 3 and not any(char.isdigit() for char in line):
-            html_content.append(f'<h2>{line}</h2>')
+            story.append(Paragraph(f'<u>{line}</u>', styles['CVSection']))
         elif line.startswith('•') or line.startswith('-') or line.startswith('●'):
             bullet_text = line[1:].strip()
-            html_content.append(f'<li>{bullet_text}</li>')
-        elif '|' in line and lines.index(original_line) < 3:
-            html_content.append(f'<div class="contact">{line}</div>')
+            story.append(Paragraph(f'• {bullet_text}', styles['CVBullet']))
         elif any(year in line for year in ['2020', '2021', '2022', '2023', '2024', '2025', '2019', '2018', '2013', '2009']):
-            html_content.append(f'<div class="job-line">{line}</div>')
-        elif line.startswith('Farooq'):
-            html_content.append(f'<h1>{line}</h1>')
+            story.append(Paragraph(line, styles['CVJob']))
         else:
-            html_content.append(f'<p>{line}</p>')
+            story.append(Paragraph(line, styles['CVText']))
     
-    final_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            @page {{ margin: 1.2cm 1.5cm; size: A4; }}
-            body {{ font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.4; color: #000; }}
-            h1 {{ font-size: 18pt; margin: 0 0 5px 0; font-weight: bold; }}
-            .contact {{ font-size: 10pt; margin-bottom: 15px; color: #333; }}
-            h2 {{ font-size: 11pt; font-weight: bold; margin: 18px 0 10px 0; padding-bottom: 3px; border-bottom: 1px solid #000; }}
-            .job-line {{ margin: 8px 0 3px 0; font-size: 10.5pt; }}
-            p {{ margin: 3px 0; text-align: left; }}
-            li {{ margin: 4px 0 4px 20px; text-align: left; list-style-type: disc; }}
-            .spacer {{ height: 8px; }}
-        </style>
-    </head>
-    <body>{''.join(html_content)}</body>
-    </html>
-    """
-    
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-    HTML(string=final_html).write_pdf(temp_file.name)
+    doc.build(story)
     return temp_file.name
 
 HTML_TEMPLATE = """
@@ -125,7 +164,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <h1>📄 CV Optimizer</h1>
+    <h1>CV Optimizer</h1>
     <p class="subtitle">Paste a job description and get an ATS-optimized PDF</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
     <form method="POST" id="cvForm">
@@ -133,7 +172,7 @@ HTML_TEMPLATE = """
         <textarea name="job_url" id="job_url" rows="1" placeholder="https://linkedin.com/jobs/..."></textarea>
         <label for="job_description">Job Description *</label>
         <textarea name="job_description" id="job_description" rows="15" placeholder="Paste the full job description here..." required></textarea>
-        <button type="submit" id="submitBtn">🚀 Optimize My CV and Download PDF</button>
+        <button type="submit" id="submitBtn">Optimize My CV and Download PDF</button>
         <div class="loading" id="loading">Optimizing... 20-30 seconds...</div>
     </form>
     <div class="tips"><strong>Tips:</strong> Copy the ENTIRE job description. Your CV structure stays the same - only wording gets optimized.</div>
@@ -165,3 +204,20 @@ def index():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+```
+
+5. Click **"Commit changes"**
+
+---
+
+**Then update `requirements.txt`:**
+
+1. Click on **`requirements.txt`**
+2. Click the **pencil icon** to edit
+3. Replace everything with:
+```
+flask==3.0.0
+anthropic==0.45.0
+requests==2.31.0
+reportlab==4.1.0
+gunicorn==21.2.0
